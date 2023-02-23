@@ -5,9 +5,12 @@
 from typing import Tuple
 
 import numpy as np
+import trimesh
 from trimesh.bounds import oriented_bounds
 from trimesh import Trimesh
 from trimesh.util import unitize
+from AIDR.transform import base_transform
+import matplotlib.pyplot as plt
 
 
 class obb_odometry:
@@ -45,6 +48,7 @@ class obb_odometry:
     _eY: np.ndarray
     _eZ: np.ndarray
     _arch_type: str
+    _mesh: trimesh.Trimesh
 
     @property
     def right(self):
@@ -79,7 +83,7 @@ class obb_odometry:
         self._eZ = x * (1 if self._arch_type == "L" else -1)
 
     @property
-    def axes(self):
+    def axes(self) -> np.ndarray:
         """The core unit-vectors listed in :attr:`names` as rows of a
         3x3 matrix.
 
@@ -87,6 +91,17 @@ class obb_odometry:
         points.
         """
         return np.array([getattr(self, x)for x in self.names])
+
+    def plot_project_to_YZ_plane(self):
+        new_coordinates = base_transform(self._mesh.triangles_center-self._mesh.center_mass
+                                         , self.axes.T)
+        y = new_coordinates[:, 1]
+        z = new_coordinates[:, 2]
+        if self._arch_type == 'U':
+            z = -z
+
+        plt.scatter(y, z, c='midnightblue', marker='.', s=0.3)
+        plt.show()
 
     def __init__(self, mesh: Trimesh, arch_type=None):
         self._mesh = mesh
@@ -161,6 +176,8 @@ class obb_odometry:
         # If rotation matrix mirrors then reverse eX
         print(np.linalg.det(self.axes))
         self._eX *= np.sign(np.linalg.det(self.axes))
+
+
 
 
 
