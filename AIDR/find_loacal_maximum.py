@@ -7,6 +7,8 @@ class local_height_maximum_finder:
     """
 
     _mask: np.ndarray
+    _mesh: trimesh.Trimesh
+    _height_direction: np.ndarray
 
     @property
     def mask(self):
