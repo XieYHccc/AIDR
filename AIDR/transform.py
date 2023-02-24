@@ -6,7 +6,9 @@ def base_transform(pos, basis):
 
         Parameters: pos((n,dimension) float) - coordinates of points set
                     basis((3,3) or (2,2) float) - new basis
-        Returns:
-    """
-    return np.dot(pos, basis)
 
+        Returns: new_coordinates((n,dimension)float)
+    """
+
+    new_coordinates = np.dot(pos, basis)
+    return new_coordinates
