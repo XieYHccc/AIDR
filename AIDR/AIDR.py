@@ -5,6 +5,7 @@ from .find_loacal_maximum import local_height_maximum_finder
 from .odometry.obb_odometry import obb_odometry
 from .partion import curvature_based_Part
 
+
 class AIDR:
     _mesh: tm.Trimesh
     _arch_type: str
@@ -22,6 +23,12 @@ class AIDR:
         self._mesh.visual.face_colors = [255, 255, 255, 255]
         sc = tm.Scene([self._mesh, p_cloud])
         sc.show()
+
+    def plot_peak_spread_region(self, peak_idx):
+        self._partion.plot_peak_spread_region(peak_idx)
+
+    def plot_spread_regions(self):
+        self._partion.plot_spread_regions()
 
     def __init__(self, mesh, arch_type, run=True):
         self._init(mesh, arch_type)
@@ -44,7 +51,7 @@ class AIDR:
 
     def _find_height_threshold(self):
         self._h_threshold = np.inner(self._mesh.vertices,
-                                     self._odometry.occlusal).max() - 6
+                                     self._odometry.occlusal).max() - 4
 
         print(f'height threshold is:{self._h_threshold}')
 
@@ -57,10 +64,9 @@ class AIDR:
         maximum_points = self._mesh.vertices[mask]
         heights = np.inner(maximum_points, self._odometry.occlusal)
         peaks_idx = mask[heights > self._h_threshold]
-        print(peaks_idx)
-        self._partion = curvature_based_Part(self._mesh, self._odometry
-                                             , peaks_idx)
-
+        print(f'the indices of peaks:{peaks_idx}')
+        self._partion = curvature_based_Part(self._mesh, self._odometry, peaks_idx)
+        # self._partion.plot_peak_spread_region(peaks_idx[5])
 
 
 
