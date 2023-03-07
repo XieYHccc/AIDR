@@ -1,6 +1,5 @@
 import numpy as np
 import trimesh as tm
-import networkx as nx
 from collections import defaultdict
 
 
@@ -8,7 +7,8 @@ def edge_based_curvature(mesh: tm.Trimesh, get_map=False):
     """
         correspond to trimesh.Trimesh.face_adjacency, ignore edges on the boundary,
         but for watertight mesh, face_adjacency also correspond to edges_unique.
-        edge based curvature = |(n0 x n1)|/|△x|.
+        edge based curvature = |(n0 x n1)|/|△x|.Triangles are referenced by
+        argument based on the order they are listed in Trimesh.faces
     """
 
     face_adj = mesh.face_adjacency

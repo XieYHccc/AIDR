@@ -37,3 +37,4 @@ class local_height_maximum_finder:
         non_max_idx = self._mesh.faces[mask_to_get_idx]
 
         self._mask[non_max_idx] = 0
+        self._mask = np.nonzero(self._mask)[0]

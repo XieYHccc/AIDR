@@ -1,19 +1,15 @@
 import numpy as np
-import networkx as nx
-import collections
-import trimesh
-import time
-from curvature import edge_based_curvature
-import vtkplotlib as vpl
-import matplotlib.pyplot as plt
-m: trimesh.Trimesh = trimesh.load(r'../data/bi_cleft/0101_Birth_Maxillary_export.stl')
 
-e_curvature, curvature_map = edge_based_curvature(m, True)
+# 创建一个二维数组
+arr = np.array([[1, 2, 3], [4, 5, 6], [7, 8, 9]])
 
-vpl.mesh_plot_with_edge_scalars(m.vertices[m.faces], edge_scalars=curvature_map, cmap=["r", "w", "b"])
+# 创建一个数组，包含要寻找的元素
+elements = np.array([2, 5, 9])
 
-vpl.show()
+# 寻找第二维中包含任何一个要寻找的元素的索引
+idx = np.where(np.isin(arr, elements))
 
-# plt.hist(e_curvature, bins=30, density=True, alpha=0.5, color='b')
-# plt.show()
+# 输出结果
+print(idx)
+print(np.isin(arr, elements))
 

@@ -20,7 +20,7 @@ def face_neighbors(mesh: Trimesh):
     """
     face_adj = mesh.face_adjacency
 
-    # create a defaultdict object to store the neighbors of each face the default value of dictionary is empty list.
+    # create a default dict object to store the neighbors of each face the default value of dictionary is empty list.
     d = collections.defaultdict(list)
     [(d[a].append(b), d[b].append(a)) for a, b in mesh.face_adjacency]
 
