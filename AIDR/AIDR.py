@@ -12,6 +12,7 @@ class AIDR:
     _local_maximum_finder: local_height_maximum_finder
     _odometry: obb_odometry
     _h_threshold: float
+    _scene: tm.scene
 
     def plot_local_maximum(self):
         mask = self._local_maximum_finder.mask
@@ -20,15 +21,16 @@ class AIDR:
         maximum_points = maximum_points[heights > self._h_threshold]
         p_cloud = tm.PointCloud(maximum_points)
         p_cloud.vertices_color = [0, 0, 0, 255]
-        self._mesh.visual.face_colors = [255, 255, 255, 255]
-        sc = tm.Scene([self._mesh, p_cloud])
-        sc.show()
+        self._scene.add_geometry(p_cloud)
 
     def plot_peak_spread_region(self, peak_idx):
         self._partion.plot_peak_spread_region(peak_idx)
 
     def plot_spread_regions(self):
         self._partion.plot_spread_regions()
+
+    def show(self):
+        self._scene.show()
 
     def __init__(self, mesh, arch_type, run=True):
         self._init(mesh, arch_type)
@@ -39,6 +41,8 @@ class AIDR:
     def _init(self, mesh, arch_type):
         self._mesh = mesh
         self._arch_type = arch_type
+        self._mesh.visual.face_colors = [255, 255, 255, 255]
+        self._scene = tm.Scene(self._mesh)
 
     def _run(self):
         self._find_orientation()

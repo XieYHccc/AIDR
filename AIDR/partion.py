@@ -29,7 +29,7 @@ class curvature_based_Part:
     _peak_costs: {}
     _peak_tri2tri_costs: np.ndarray
 
-    _MAX_COST = 0.5
+    _MAX_COST = 1
     _MAX_SPREAD_WIDTH = 8
     _MAX_SPREAD_HEIGHT = 5
 
@@ -51,13 +51,11 @@ class curvature_based_Part:
 
     def plot_peak_spread_region(self, peak_idx):
         self._mesh.visual.face_colors[self._peak_masks[peak_idx]] = [255, 0, 0, 255]
-        self._mesh.show()
 
     def plot_spread_regions(self):
         mask = np.array([value for value in self._peak_masks.values()])
         mask = np.bitwise_or.reduce(mask, axis=0)
         self._mesh.visual.face_colors[mask] = [255, 0, 0, 255]
-        self._mesh.show()
 
     def __init__(self, mesh, odometry, peaks_idx):
         self._mesh = mesh

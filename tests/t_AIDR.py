@@ -5,4 +5,6 @@ mesh: trimesh.Trimesh = trimesh.load(r'../data/bi_cleft/0101_Birth_Maxillary_exp
 
 aidr = AIDR(mesh, arch_type='U')
 
+aidr.plot_local_maximum()
 aidr.plot_spread_regions()
+aidr.show()
