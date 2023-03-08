@@ -66,7 +66,7 @@ class AIDR:
         peaks_idx = mask[heights > self._h_threshold]
         print(f'the indices of peaks:{peaks_idx}')
         self._partion = curvature_based_Part(self._mesh, self._odometry, peaks_idx)
-        # self._partion.plot_peak_spread_region(peaks_idx[5])
+        # self._partion.plot_peak_spread_region(peaks_idx[2])
 
 
 

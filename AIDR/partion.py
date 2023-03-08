@@ -20,18 +20,17 @@ class basePart(abc.ABC):
 
 
 class curvature_based_Part:
-
     _mesh: trimesh.Trimesh
     _odom: obb_odometry
     _curvature: np.ndarray
     _curvature_per_triangle: np.ndarray
-    _peaks_idx: np.ndarray                          # the indices of peaks
+    _peaks_idx: np.ndarray  # the indices of peaks
     _peak_masks: {}
     _peak_costs: {}
     _peak_tri2tri_costs: np.ndarray
 
     _MAX_COST = 0.5
-    _MAX_SPREAD_WIDTH = 6
+    _MAX_SPREAD_WIDTH = 8
     _MAX_SPREAD_HEIGHT = 5
 
     @property
@@ -78,14 +77,14 @@ class curvature_based_Part:
         self._spread_from_peaks()
 
     def _calculate_curvature(self):
-        self._curvature, self._curvature_per_triangle =\
+        self._curvature, self._curvature_per_triangle = \
             edge_based_curvature(self._mesh, get_map=True)
 
     def _spread_from_peaks(self):
 
         tri2tri_costs = -self._curvature_per_triangle.clip(max=0)
 
-        # self._spread_from_peak(self._peaks_idx[5], tri2tri_costs)
+        # self._spread_from_peak(self._peaks_idx[2], tri2tri_costs)
         for peak in self._peaks_idx:
             self._spread_from_peak(peak, tri2tri_costs)
 
@@ -95,6 +94,12 @@ class curvature_based_Part:
         # init accumulative costs
         accumulative_cost = np.ones(self._mesh.faces.shape[0]) * self._MAX_COST
         accumulative_cost[peak_triangles] = 0.0
+
+        # to make sure the region won't spread too widely,
+        # restrict region within specific width and height
+        center2peak = self._mesh.triangles_center - self._mesh.vertices[peak_idx]
+        width_array = abs(np.inner(center2peak, self._odom.right))
+        height_array = abs(np.inner(center2peak, self._odom.occlusal))
 
         # init queue
         tmp_queue = queue.Queue()
@@ -106,10 +111,7 @@ class curvature_based_Part:
             face = tmp_queue.get()
 
             # make sure the region won't spread too widely
-            face_center = self._mesh.triangles_center[face]
-            width = abs(np.inner(self._odom.right, face_center - self._mesh.vertices[peak_idx]))
-            height = abs(np.inner(self._odom.occlusal, face_center - self._mesh.vertices[peak_idx]))
-            if width > self._MAX_SPREAD_WIDTH or height > self._MAX_SPREAD_HEIGHT:
+            if width_array[face] > self._MAX_SPREAD_WIDTH or height_array[face] > self._MAX_SPREAD_HEIGHT:
                 continue
 
             face_adj = self._faces_adj[face]
@@ -158,21 +160,3 @@ class curvature_based_Part:
     #
     #     self._peak_costs[peak_idx] = accumulative_cost
     #     self._peak_masks[peak_idx] = accumulative_cost < self._MAX_COST
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

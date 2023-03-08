@@ -1,8 +1,12 @@
-import heapq
+import queue
 
-h = [(1, 'a'), (2, 'c'), (2, 'c'), (3, 'd'), (4, 'e')]
-heapq.heapify(h)
+# create a queue
+q = queue.Queue()
 
+# add all elements of an array to the queue at once
+arr = [1, 2, 3]
+q.put(1, 2, 3)
 
-while h:
-    print(heapq.heappop(h))
+# get the first item from the queue
+while not q.empty():
+    print(q.get())
