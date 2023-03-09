@@ -1,12 +1,7 @@
-import queue
+import numpy as np
 
-# create a queue
-q = queue.Queue()
+a = np.array([0,1,1])
+b = np.array([1,0,1])
 
-# add all elements of an array to the queue at once
-arr = [1, 2, 3]
-q.put(1, 2, 3)
-
-# get the first item from the queue
-while not q.empty():
-    print(q.get())
+for i in range(1, 2):
+    print(i)

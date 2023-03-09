@@ -24,13 +24,15 @@ class curvature_based_Part:
     _odom: obb_odometry
     _curvature: np.ndarray
     _curvature_per_triangle: np.ndarray
-    _peaks_idx: np.ndarray  # the indices of peaks
+    _peaks_idx: np.ndarray                              # the indices of peaks
     _peak_masks: {}
     _peak_costs: {}
     _peak_tri2tri_costs: np.ndarray
+    _peak_groups: []
+    _overlap_mask: np.ndarray          # overlap_mask[i, j] = do peaks[i] and peaks[j] overlap?
 
-    _MAX_COST = 1
-    _MAX_SPREAD_WIDTH = 8
+    _MAX_COST = 0.5
+    _MAX_SPREAD_WIDTH = 6
     _MAX_SPREAD_HEIGHT = 5
 
     @property
@@ -50,12 +52,21 @@ class curvature_based_Part:
         plt.show()
 
     def plot_peak_spread_region(self, peak_idx):
-        self._mesh.visual.face_colors[self._peak_masks[peak_idx]] = [255, 0, 0, 255]
+        self._mesh.visual.face_colors[self._peak_masks[peak_idx]] = trimesh.visual.random_color()
 
     def plot_spread_regions(self):
-        mask = np.array([value for value in self._peak_masks.values()])
-        mask = np.bitwise_or.reduce(mask, axis=0)
-        self._mesh.visual.face_colors[mask] = [255, 0, 0, 255]
+        # mask = np.array([value for value in self._peak_masks.values()])
+        # mask = np.bitwise_or.reduce(mask, axis=0)
+        # self._mesh.visual.face_colors[mask] = [255, 0, 0, 255]
+        for peak in self._peaks_idx:
+            self.plot_peak_spread_region(peak)
+
+    def plot_group_regions(self):
+        for group in self._peak_groups:
+            print(self._peaks_idx[group])
+            mask = [self._peak_masks[peak_] for peak_ in self._peaks_idx[group]]
+            mask = np.bitwise_or.reduce(mask, axis=0)
+            self._mesh.visual.face_colors[mask] = trimesh.visual.random_color()
 
     def __init__(self, mesh, odometry, peaks_idx):
         self._mesh = mesh
@@ -64,6 +75,7 @@ class curvature_based_Part:
         self._faces_adj = face_neighbors(self._mesh)
         self._peak_masks = {}
         self._peak_costs = {}
+        self._peak_groups = []
 
         t0 = time.time()
         self._run()
@@ -73,6 +85,7 @@ class curvature_based_Part:
     def _run(self):
         self._calculate_curvature()
         self._spread_from_peaks()
+        self._group_overlap_region()
 
     def _calculate_curvature(self):
         self._curvature, self._curvature_per_triangle = \
@@ -123,6 +136,50 @@ class curvature_based_Part:
 
         self._peak_costs[peak_idx] = accumulative_cost
         self._peak_masks[peak_idx] = accumulative_cost < self._MAX_COST
+
+    def _group_overlap_region(self):
+        """
+        Find all peak spreads that share area on the mesh. The peak groups are stored in
+        `self.overlapping_arg_groups`, an array of sets of args.
+
+        It allows indirect groups. i.e. If peaks[0] overlaps with peaks[1] and peaks[1] overlaps
+        with peaks[2] but peaks[0] doesn't overlap with peaks[2] then they are all grouped
+        together anyway.
+
+        Peaks in `self.discarded_args` are still included here. This helps to filter away
+        unwanted peaks later.
+        """
+
+        # `overlap_mask` is a square bool array.
+        # `overlap_mask[i, j]` = do peaks[i] and peaks[j] overlap?
+        n_peak = len(self._peaks_idx)
+        self._overlap_mask = np.zeros((n_peak, n_peak))
+
+        # use double loop to judge whether two peaks' region are overlapping
+        for i in range(n_peak):
+            self._overlap_mask[i][i] = 1
+            mask1 = self._peak_masks[self._peaks_idx[i]]
+            for j in range(i+1, n_peak):
+                mask2 = self._peak_masks[self._peaks_idx[j]]
+                if np.bitwise_and(mask1, mask2).any():
+                    self._overlap_mask[i][j] = 1
+                    self._overlap_mask[j][i] = 1
+
+        # convert adjacency matrix to list of groups in which each element is overlapped
+        flag = np.zeros(n_peak)
+        for i in range(n_peak):
+            if flag[i] == 1:
+                continue
+            indices = np.where(self._overlap_mask[i] == 1)
+            group = np.unique(np.where(self._overlap_mask[indices] == 1)[1].reshape(-1))
+            flag[indices] = 1
+            self._peak_groups.append(group)
+
+
+
+
+
+
 
     # def _spread_from_peak(self, peak_idx, costs):  # core region growing algorithm
     #     peak_triangles = np.where(self._mesh.faces == peak_idx)[0]

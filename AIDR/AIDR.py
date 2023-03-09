@@ -13,6 +13,11 @@ class AIDR:
     _odometry: obb_odometry
     _h_threshold: float
     _scene: tm.scene
+    _partion: curvature_based_Part
+
+    @property
+    def partion(self):
+        return self._partion
 
     def plot_local_maximum(self):
         mask = self._local_maximum_finder.mask
@@ -22,12 +27,6 @@ class AIDR:
         p_cloud = tm.PointCloud(maximum_points)
         p_cloud.vertices_color = [0, 0, 0, 255]
         self._scene.add_geometry(p_cloud)
-
-    def plot_peak_spread_region(self, peak_idx):
-        self._partion.plot_peak_spread_region(peak_idx)
-
-    def plot_spread_regions(self):
-        self._partion.plot_spread_regions()
 
     def show(self):
         self._scene.show()
@@ -55,7 +54,7 @@ class AIDR:
 
     def _find_height_threshold(self):
         self._h_threshold = np.inner(self._mesh.vertices,
-                                     self._odometry.occlusal).max() - 4
+                                     self._odometry.occlusal).max() - 5
 
         print(f'height threshold is:{self._h_threshold}')
 

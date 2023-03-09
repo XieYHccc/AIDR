@@ -22,7 +22,7 @@ class local_height_maximum_finder:
 
     def _find_local_maximum(self):
         # create the vertex mask to be returned
-        # init zero to all vertex
+        # init one to all vertex
         self._mask = np.ones(len(self._mesh.vertices), dtype=bool)
 
         # calculate height for all vertex

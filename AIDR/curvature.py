@@ -34,6 +34,3 @@ def edge_based_curvature(mesh: tm.Trimesh, get_map=False):
         return curvature, curvature_map
 
     return curvature
-
-
-
