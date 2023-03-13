@@ -3,7 +3,6 @@ import time
 import numpy as np
 import collections
 import queue
-import heapq
 import trimesh
 from .curvature import edge_based_curvature
 import matplotlib.pyplot as plt
@@ -20,18 +19,18 @@ class basePart(abc.ABC):
 
 
 class curvature_based_Part:
+
     _mesh: trimesh.Trimesh
     _odom: obb_odometry
     _curvature: np.ndarray
     _curvature_per_triangle: np.ndarray
-    _peaks_idx: np.ndarray                              # the indices of peaks
-    _peak_masks: {}
-    _peak_costs: {}
-    _peak_tri2tri_costs: np.ndarray
-    _peak_groups: []
-    _overlap_mask: np.ndarray          # overlap_mask[i, j] = do peaks[i] and peaks[j] overlap?
+    _peaks_idx: np.ndarray           # the indices of peaks
+    _peak_masks: {}                  # peak_id : triangle_mask
+    _peak_costs: {}                  # peak_id : accumulative cost to each triangle
+    _peak_groups: []                 # each element is a ndarray containing peaks whose spreading region are overlap
+    _overlap_mask: np.ndarray        # overlap_mask[i, j] = do peaks[i] and peaks[j] overlap?
 
-    _MAX_COST = 0.5
+    _MAX_COST = 0.7
     _MAX_SPREAD_WIDTH = 6
     _MAX_SPREAD_HEIGHT = 5
 
@@ -63,7 +62,6 @@ class curvature_based_Part:
 
     def plot_group_regions(self):
         for group in self._peak_groups:
-            print(self._peaks_idx[group])
             mask = [self._peak_masks[peak_] for peak_ in self._peaks_idx[group]]
             mask = np.bitwise_or.reduce(mask, axis=0)
             self._mesh.visual.face_colors[mask] = trimesh.visual.random_color()
@@ -106,36 +104,36 @@ class curvature_based_Part:
         accumulative_cost = np.ones(self._mesh.faces.shape[0]) * self._MAX_COST
         accumulative_cost[peak_triangles] = 0.0
 
-        # to make sure the region won't spread too widely,
-        # restrict region within specific width and height
-        center2peak = self._mesh.triangles_center - self._mesh.vertices[peak_idx]
-        width_array = abs(np.inner(center2peak, self._odom.right))
-        height_array = abs(np.inner(center2peak, self._odom.occlusal))
-
-        # init queue
-        tmp_queue = queue.Queue()
-        faces_init = self._faces_adj[peak_triangles].reshape(-1)
-        [tmp_queue.put(face) for face in faces_init]
+        # init queue and shortest flags
+        is_shortest = np.zeros(self._mesh.faces.shape[0], dtype=bool)  # 1 means the face's minimum accumulative cost
+        faces_init = self._faces_adj[peak_triangles].reshape(-1)       # has been got
+        que = queue.PriorityQueue()
+        [que.put((accumulative_cost[face], face)) for face in faces_init]
 
         # spread from triangles containing peak
-        while not tmp_queue.empty():
-            face = tmp_queue.get()
-
-            # make sure the region won't spread too widely
-            if width_array[face] > self._MAX_SPREAD_WIDTH or height_array[face] > self._MAX_SPREAD_HEIGHT:
+        while not que.empty():
+            face = que.get()[1]
+            if is_shortest[face] == 1:
                 continue
+            else:
+                is_shortest[face] = 1
 
-            face_adj = self._faces_adj[face]
-            cost_adj = accumulative_cost[face_adj]
-            edges_cost_adj = costs[face]
-            tmp = (cost_adj + edges_cost_adj).min()
+                # make sure the region won't spread too widely
+                face_center = self._mesh.triangles_center[face]
+                width = abs(np.inner(self._odom.right, face_center - self._mesh.vertices[peak_idx]))
+                height = abs(np.inner(self._odom.occlusal, face_center - self._mesh.vertices[peak_idx]))
+                if width > self._MAX_SPREAD_WIDTH or height > self._MAX_SPREAD_HEIGHT:
+                    continue
 
-            if tmp < accumulative_cost[face]:
-                accumulative_cost[face] = tmp
-                [tmp_queue.put(adj) for adj in face_adj]
+                face_adj = self._faces_adj[face]
+                edges_cost_adj = costs[face]
+                for i, face_ in enumerate(face_adj):
+                    if accumulative_cost[face]+edges_cost_adj[i] < accumulative_cost[face_]:
+                        accumulative_cost[face_] = accumulative_cost[face]+edges_cost_adj[i]
+                        que.put((accumulative_cost[face_], face_))
 
         self._peak_costs[peak_idx] = accumulative_cost
-        self._peak_masks[peak_idx] = accumulative_cost < self._MAX_COST
+        self._peak_masks[peak_idx] = is_shortest
 
     def _group_overlap_region(self):
         """
@@ -175,12 +173,6 @@ class curvature_based_Part:
             flag[indices] = 1
             self._peak_groups.append(group)
 
-
-
-
-
-
-
     # def _spread_from_peak(self, peak_idx, costs):  # core region growing algorithm
     #     peak_triangles = np.where(self._mesh.faces == peak_idx)[0]
     #
@@ -188,20 +180,23 @@ class curvature_based_Part:
     #     accumulative_cost = np.ones(self._mesh.faces.shape[0]) * self._MAX_COST
     #     accumulative_cost[peak_triangles] = 0.0
     #
+    #     # to make sure the region won't spread too widely,
+    #     # restrict region within specific width and height
+    #     center2peak = self._mesh.triangles_center - self._mesh.vertices[peak_idx]
+    #     width_array = abs(np.inner(center2peak, self._odom.right))
+    #     height_array = abs(np.inner(center2peak, self._odom.occlusal))
+    #
     #     # init queue
+    #     tmp_queue = queue.Queue()
     #     faces_init = self._faces_adj[peak_triangles].reshape(-1)
-    #     tmp_queue = queue.PriorityQueue()
-    #     [tmp_queue.put((accumulative_cost[face], face)) for face in faces_init]
+    #     [tmp_queue.put(face) for face in faces_init]
     #
     #     # spread from triangles containing peak
     #     while not tmp_queue.empty():
-    #         face = tmp_queue.get()[1]
+    #         face = tmp_queue.get()
     #
     #         # make sure the region won't spread too widely
-    #         face_center = self._mesh.triangles_center[face]
-    #         width = abs(np.inner(self._odom.right, face_center - self._mesh.vertices[peak_idx]))
-    #         height = abs(np.inner(self._odom.occlusal, face_center - self._mesh.vertices[peak_idx]))
-    #         if width > self._MAX_SPREAD_WIDTH or height > self._MAX_SPREAD_HEIGHT:
+    #         if width_array[face] > self._MAX_SPREAD_WIDTH or height_array[face] > self._MAX_SPREAD_HEIGHT:
     #             continue
     #
     #         face_adj = self._faces_adj[face]
@@ -210,8 +205,8 @@ class curvature_based_Part:
     #         tmp = (cost_adj + edges_cost_adj).min()
     #
     #         if tmp < accumulative_cost[face]:
-    #             [tmp_queue.put((accumulative_cost[adj], adj)) for adj in face_adj]
     #             accumulative_cost[face] = tmp
+    #             [tmp_queue.put(adj) for adj in face_adj]
     #
     #     self._peak_costs[peak_idx] = accumulative_cost
     #     self._peak_masks[peak_idx] = accumulative_cost < self._MAX_COST
