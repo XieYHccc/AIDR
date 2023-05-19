@@ -4,6 +4,7 @@ import trimesh as tm
 from .find_loacal_maximum import local_height_maximum_finder
 from .odometry.obb_odometry import obb_odometry
 from .partion import curvature_based_Part
+import vtkplotlib as vpl
 
 
 class AIDR:
@@ -14,22 +15,46 @@ class AIDR:
     _h_threshold: float
     _scene: tm.scene
     _partion: curvature_based_Part
+    _figure: vpl.figure                       # the figure to plot in
+    _peaks: np.ndarray                        # indices of peak points
+    _face_colors: np.ndarray                  # shape=(face_number,3), for the mesh object in _figure
 
     @property
     def partion(self):
         return self._partion
+
+    def plot_orientation(self):
+        for (axis, color) in zip(self._odometry.axes, np.eye(3)):
+            vpl.quiver(self._mesh.center_mass+self._odometry.occlusal*15, axis, color=color, length=5)
 
     def plot_local_maximum(self):
         mask = self._local_maximum_finder.mask
         maximum_points = self._mesh.vertices[mask]
         heights = np.inner(maximum_points, self._odometry.occlusal)
         maximum_points = maximum_points[heights > self._h_threshold]
-        p_cloud = tm.PointCloud(maximum_points)
-        p_cloud.vertices_color = [0, 0, 0, 255]
-        self._scene.add_geometry(p_cloud)
+        vpl.quiver((maximum_points+2*self._odometry.occlusal), -self._odometry.occlusal, color='k', width_scale=2, length=2)
+
+    def plot_edge_curvature(self):
+        plot = vpl.mesh_plot_with_edge_scalars(self._mesh.vertices[self._mesh.faces],
+                                               edge_scalars=self._partion.curvature_per_triangle,
+                                               cmap=["r", 'w', "b"])
+        plot_range = np.nanstd(self._partion.curvature) * 2
+        plot.scalar_range = (-plot_range, plot_range)
+        bar = vpl.scalar_bar(plot, "Curvature")
+        bar.set_horizontal()
+        bar.size = .8, .1
+        bar.position = .1, .05
+        vpl.show()
+
+    def plot_peak_spread_region(self, peak_idx):
+        self._plot_mesh.tri_scalars[self._partion.mask[peak_idx]] = np.random.randint(1, 256, 3)
+
+    def plot_spread_regions(self):
+        for peak in self._peaks:
+            self.plot_peak_spread_region(peak)
 
     def show(self):
-        self._scene.show()
+        self._figure.show()
 
     def __init__(self, mesh, arch_type, run=True):
         self._init(mesh, arch_type)
@@ -40,8 +65,9 @@ class AIDR:
     def _init(self, mesh, arch_type):
         self._mesh = mesh
         self._arch_type = arch_type
-        self._mesh.visual.face_colors = [255, 255, 255, 255]
-        self._scene = tm.Scene(self._mesh)
+        self._face_colors = np.tile(np.array([[255, 255, 255]]), (len(self._mesh.faces),1))
+        self._figure = vpl.figure("Baby dental model")
+        self._plot_mesh = vpl.mesh_plot(self._mesh.vertices[self._mesh.faces], tri_scalars=self._face_colors)
 
     def _run(self):
         self._find_orientation()
@@ -64,11 +90,10 @@ class AIDR:
 
     def _partion_alveolus(self):
         mask = self._local_maximum_finder.mask
-        maximum_points = self._mesh.vertices[mask]
-        heights = np.inner(maximum_points, self._odometry.occlusal)
-        peaks_idx = mask[heights > self._h_threshold]
-        print(f'the indices of peaks:{peaks_idx}')
-        self._partion = curvature_based_Part(self._mesh, self._odometry, peaks_idx)
+        heights = np.inner(self._mesh.vertices[mask], self._odometry.occlusal)
+        self._peaks = mask[heights > self._h_threshold]
+        print(f'the indices of peaks:{self._peaks}')
+        self._partion = curvature_based_Part(self._mesh, self._odometry, self._peaks)
         # self._partion.plot_peak_spread_region(peaks_idx[2])
 
 
